@@ -11,30 +11,29 @@ pub fn spawn_shell(info: &ShellSpawnInfo) -> Result<()> {
         .suffix(".bash")
         .tempfile()?;
 
-    write!(
-        temp_rc_file,
-        r#"
-if [ -f "$HOME/.bashrc" ] ; then
-    source "$HOME/.bashrc"
-elif [ -f "/etc/skel/.bashrc" ] ; then
-    source /etc/skel/.bashrc
-fi
+    let mut rc_file = Vec::from(r#"
+    if [ -f "$HOME/.bashrc" ] ; then
+        source "$HOME/.bashrc"
+    elif [ -f "/etc/skel/.bashrc" ] ; then
+        source /etc/skel/.bashrc
+    fi
+    
+    function __kubie_cmd_pre_exec__() {{
+        export KUBECONFIG="$KUBIE_KUBECONFIG"
+    }}
+    
+    trap '__kubie_cmd_pre_exec__' DEBUG
+"#);
 
-function __kubie_cmd_pre_exec__() {{
-    export KUBECONFIG="$KUBIE_KUBECONFIG"
-}}
+    if info.prompt != "" {
+        write!(&mut rc_file, r#"
+KUBIE_PROMPT='{}'
+PS1="$KUBIE_PROMPT $PS1"
+unset KUBIE_PROMPT
+        "#, info.prompt)?;
+    }
 
-trap '__kubie_cmd_pre_exec__' DEBUG
-
-# Check if prompt is disabled.
-if [[ "$KUBIE_PROMPT_DISABLE" != "1" ]] ; then
-    KUBIE_PROMPT='{}'
-    PS1="$KUBIE_PROMPT $PS1"
-    unset KUBIE_PROMPT
-fi
-"#,
-        info.prompt,
-    )?;
+    temp_rc_file.write(&rc_file)?;
     temp_rc_file.flush()?;
 
     let mut cmd = Command::new("bash");

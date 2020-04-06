@@ -38,6 +38,7 @@ impl<'n> EnvVars<'n> {
 pub struct ShellSpawnInfo<'n> {
     env_vars: EnvVars<'n>,
     prompt: String,
+    prompt_disabled: bool,
 }
 
 pub fn spawn_shell(settings: &Settings, config: KubeConfig, session: &Session) -> Result<()> {
@@ -88,9 +89,11 @@ pub fn spawn_shell(settings: &Settings, config: KubeConfig, session: &Session) -
         }
     }
 
+    let prompt_disabled = true;
     let info = ShellSpawnInfo {
         env_vars,
         prompt: prompt::generate_ps1(settings, next_depth, kind),
+        prompt_disabled,
     };
 
     match kind {
